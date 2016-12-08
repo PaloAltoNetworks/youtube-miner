@@ -1,0 +1,21 @@
+url: https://github.com/PaloAltoNetworks/youtube-miner
+description: >
+  Sample extension for MineMeld.
+
+prototypes:
+  eevblog:
+    class: youtubeminer.Miner
+    development_status: EXPERIMENTAL
+    node_type: miner
+    description: >
+      test prototype for youtubeminer.Miner, mines video of EEVblog
+    config:
+      # set the channel name to EEVblog
+      channel_name: EEVblog
+      # source name used in the indicators
+      source_name: youtube.EEVblog
+      # age out of indicators
+      # disabled, removed when they disappear from the channel
+      age_out:
+        sudden_death: true
+        default: null
