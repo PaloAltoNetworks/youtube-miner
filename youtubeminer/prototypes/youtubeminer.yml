@@ -4,9 +4,15 @@ description: >
 
 prototypes:
   eevblog:
+    author: Palo Alto Networks TBD
     class: youtubeminer.Miner
     development_status: EXPERIMENTAL
     node_type: miner
+    indicator_types:
+      - URL
+    tags:
+      - extension
+      - youtubeminer
     description: >
       test prototype for youtubeminer.Miner, mines video of EEVblog
     config:
@@ -19,3 +25,6 @@ prototypes:
       age_out:
         sudden_death: true
         default: null
+      # flag indicators with share level green
+      attributes:
+        share_level: green
