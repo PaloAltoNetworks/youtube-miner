@@ -1,3 +1,4 @@
-minemeld_core>=0.9.31
+# comment the following line to install in devel environment
+minemeld-core>=0.9.31
 beautifulsoup4
 requests
