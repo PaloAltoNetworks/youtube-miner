@@ -1,5 +1,3 @@
-__version__ = '0.1'
-
 def prototypes():
     import os
 
