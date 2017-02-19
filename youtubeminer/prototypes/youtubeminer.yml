@@ -28,3 +28,32 @@ prototypes:
       # flag indicators with share level green
       attributes:
         share_level: green
+
+  playlistMiner:
+    author: faeppli
+    class: youtubeminer.PlaylistMiner
+    development_status: EXPERIMENTAL
+    node_type: miner
+    indicator_types:
+      - URL
+    tags:
+      - extension
+      - youtubeminer
+    description: >
+      mine a YouTube playlist, you need to create a New Prototype based on this with a valid YouTube
+      API Key and a playlist_id to use this.
+    config:
+      # set the playlist_id to omicron's videos
+      playlist_id: UUQ2S-1cltR5ybGS_JXkKpNg
+      # set API Key
+      api_key: '<place a valid API Key here>'
+      # source name used in the indicators
+      source_name: youtube.playlist
+      # age out of indicators
+      # disabled, removed when they disappear from the channel
+      age_out:
+        sudden_death: true
+        default: null
+      # flag indicators with share level green
+      attributes:
+        share_level: green
