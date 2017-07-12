@@ -57,3 +57,32 @@ prototypes:
       # flag indicators with share level green
       attributes:
         share_level: green
+
+  channelMiner:
+    author: Palo Alto Networks TBD
+    class: youtubeminer.ChannelMiner
+    development_status: EXPERIMENTAL
+    node_type: miner
+    indicator_types:
+      - URL
+    tags:
+      - extension
+      - youtubeminer
+    description: >
+      mine a YouTube channel, you need to create a New Prototype based on this with a valid YouTube
+      API Key and a channel_id to use this.
+    config:
+      # set the playlist_id to omicron's videos
+      channel_id: UCPRouchFt58TZnjoI65aelA
+      # set API Key
+      api_key: '<place a valid API Key here>'
+      # source name used in the indicators
+      source_name: youtube.channel
+      # age out of indicators
+      # disabled, removed when they disappear from the channel
+      age_out:
+        sudden_death: true
+        default: null
+      # flag indicators with share level green
+      attributes:
+        share_level: green

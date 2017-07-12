@@ -7,7 +7,8 @@
     "entry_points": {
         "minemeld_nodes": {
             "youtubeminer.Miner": "youtubeminer.node:Miner",
-            "youtubeminer.PlaylistMiner": "youtubeminer.node:PlaylistMiner"
+            "youtubeminer.PlaylistMiner": "youtubeminer.node:PlaylistMiner",
+            "youtubeminer.ChannelMiner": "youtubeminer.node:ChannelMiner"
         },
         "minemeld_prototypes": {
             "youtubeminer.prototypes": "youtubeminer:prototypes"
