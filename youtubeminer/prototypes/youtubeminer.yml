@@ -69,7 +69,7 @@ prototypes:
       - extension
       - youtubeminer
     description: >
-      mine a YouTube channel, you need to create a New Prototype based on this with a valid YouTube
+      Mine a YouTube channel, you need to create a New Prototype based on this with a valid YouTube
       API Key and a channel_id to use this.
     config:
       # set the playlist_id to omicron's videos
