@@ -33,10 +33,10 @@ class Processor(actorbase.ActorBaseFT):
 
         self.SR = None
 
-        super(RedisSet, self).__init__(name, chassis, config)
+        super(Processor, self).__init__(name, chassis, config)
 
     def configure(self):
-        super(RedisSet, self).configure()
+        super(Processor, self).configure()
 
         self.redis_url = self.config.get('redis_url',
             os.environ.get('REDIS_URL', 'unix:///var/run/redis/redis.sock')
@@ -50,7 +50,7 @@ class Processor(actorbase.ActorBaseFT):
 
     def connect(self, inputs, output):
         output = False
-        super(RedisSet, self).connect(inputs, output)
+        super(Processor, self).connect(inputs, output)
 
     def read_checkpoint(self):
         self._connect_redis()
