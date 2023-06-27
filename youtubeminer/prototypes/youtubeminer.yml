@@ -5,84 +5,29 @@ description: >
 prototypes:
   eevblog:
     author: Palo Alto Networks TBD
-    class: youtubeminer.Miner
+    class: youtubeminer.Processor
     development_status: EXPERIMENTAL
-    node_type: miner
+    node_type: processor
     indicator_types:
-      - URL
+      - IPv4
     tags:
       - extension
-      - youtubeminer
     description: >
       test prototype for youtubeminer.Miner, mines video of EEVblog
     config:
-      # set the channel name to EEVblog
-      channel_name: EEVblog
-      # source name used in the indicators
-      source_name: youtube.EEVblog
-      # age out of indicators
-      # disabled, removed when they disappear from the channel
-      age_out:
-        sudden_death: true
-        default: null
-      # flag indicators with share level green
-      attributes:
-        share_level: green
-
-  playlistMiner:
-    author: faeppli
-    class: youtubeminer.PlaylistMiner
-    development_status: EXPERIMENTAL
-    node_type: miner
-    indicator_types:
-      - URL
-    tags:
-      - extension
-      - youtubeminer
-    description: >
-      mine a YouTube playlist, you need to create a New Prototype based on this with a valid YouTube
-      API Key and a playlist_id to use this.
-    config:
-      # set the playlist_id to omicron's videos
-      playlist_id: UUQ2S-1cltR5ybGS_JXkKpNg
-      # set API Key
-      api_key: '<place a valid API Key here>'
-      # source name used in the indicators
-      source_name: youtube.playlist
-      # age out of indicators
-      # disabled, removed when they disappear from the channel
-      age_out:
-        sudden_death: true
-        default: null
-      # flag indicators with share level green
-      attributes:
-        share_level: green
-
-  channelMiner:
-    author: Palo Alto Networks TBD
-    class: youtubeminer.ChannelMiner
-    development_status: EXPERIMENTAL
-    node_type: miner
-    indicator_types:
-      - URL
-    tags:
-      - extension
-      - youtubeminer
-    description: >
-      Mine a YouTube channel, you need to create a New Prototype based on this with a valid YouTube
-      API Key and a channel_id to use this.
-    config:
-      # set the playlist_id to omicron's videos
-      channel_id: UCPRouchFt58TZnjoI65aelA
-      # set API Key
-      api_key: '<place a valid API Key here>'
-      # source name used in the indicators
-      source_name: youtube.channel
-      # age out of indicators
-      # disabled, removed when they disappear from the channel
-      age_out:
-        sudden_death: true
-        default: null
-      # flag indicators with share level green
-      attributes:
-        share_level: green
+      infilters:
+      -   actions:
+          - accept
+          conditions:
+          - __method == 'withdraw'
+          name: accept withdraws
+      -   actions:
+          - accept
+          conditions:
+          - type == 'IPv4'
+          name: accept IPv4
+      -   actions:
+          - drop
+          name: drop all
+      whitelist_prefixes:
+      - wl
