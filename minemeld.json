@@ -7,9 +7,7 @@
     "url": "https://github.com/PaloAltoNetworks/youtube-miner",
     "entry_points": {
         "minemeld_nodes": {
-            "youtubeminer.Miner": "youtubeminer.node:Miner",
-            "youtubeminer.PlaylistMiner": "youtubeminer.node:PlaylistMiner",
-            "youtubeminer.ChannelMiner": "youtubeminer.node:ChannelMiner"
+            "youtubeminer.Processor": "youtubeminer.node:Processor"
         },
         "minemeld_prototypes": {
             "youtubeminer.prototypes": "youtubeminer:prototypes"
