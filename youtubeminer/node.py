@@ -1,217 +1,226 @@
+#  Copyright 2015 Palo Alto Networks, Inc
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+from __future__ import absolute_import
+
 import logging
-import json
+import redis
+import os
+import ujson as json
 
-import requests
-import bs4  # we use bs4 to parse the HTML page
-
-from minemeld.ft.basepoller import BasePollerFT
+from . import base
+from . import actorbase
 
 LOG = logging.getLogger(__name__)
 
 
-class Miner(BasePollerFT):
+class Processor(actorbase.ActorBaseFT):
+    def __init__(self, name, chassis, config):
+        self.redis_skey = name
+        self.redis_skey_value = name+'.value'
+        self.redis_skey_chkp = name+'.chkp'
+
+        self.SR = None
+
+        super(RedisSet, self).__init__(name, chassis, config)
+
     def configure(self):
-        super(Miner, self).configure()
+        super(RedisSet, self).configure()
 
-        self.polling_timeout = self.config.get('polling_timeout', 20)
-        self.verify_cert = self.config.get('verify_cert', True)
-
-        self.channel_name = self.config.get('channel_name', None)
-        if self.channel_name is None:
-            raise ValueError('%s - channel name is required' % self.name)
-        self.url = 'https://www.youtube.com/user/{}/videos'.format(
-            self.channel_name
+        self.redis_url = self.config.get('redis_url',
+            os.environ.get('REDIS_URL', 'unix:///var/run/redis/redis.sock')
         )
-
-    def _build_iterator(self, item):
-        # builds the request and retrieves the page
-        rkwargs = dict(
-            stream=False,
-            verify=self.verify_cert,
-            timeout=self.polling_timeout
+        self.scoring_attribute = self.config.get(
+            'scoring_attribute',
+            'last_seen'
         )
+        self.store_value = self.config.get('store_value', False)
+        self.max_entries = self.config.get('max_entries', 1000 * 1000)
 
-        r = requests.get(
-            self.url,
-            **rkwargs
-        )
+    def connect(self, inputs, output):
+        output = False
+        super(RedisSet, self).connect(inputs, output)
+
+    def read_checkpoint(self):
+        self._connect_redis()
+
+        self.last_checkpoint = None
+
+        config = {
+            'class': (self.__class__.__module__+'.'+self.__class__.__name__),
+            'config': self._original_config
+        }
+        config = json.dumps(config, sort_keys=True)
 
         try:
-            r.raise_for_status()
-        except:
-            LOG.debug('%s - exception in request: %s %s',
-                      self.name, r.status_code, r.content)
-            raise
+            contents = self.SR.get(self.redis_skey_chkp)
+            if contents is None:
+                raise ValueError('{} - last checkpoint not found'.format(self.name))
 
-        # parse the page
-        html_soup = bs4.BeautifulSoup(r.content, "lxml")
-        result = html_soup.find_all(
-            'div',
-            class_='yt-lockup-video',
-            attrs={
-                'data-context-item-id': True
-            }
-        )
+            if contents[0] == '{':
+                # new format
+                contents = json.loads(contents)
+                self.last_checkpoint = contents['checkpoint']
+                saved_config = contents['config']
+                saved_state = contents['state']
 
-        return result
+            else:
+                self.last_checkpoint = contents
+                saved_config = ''
+                saved_state = None
 
-    def _process_item(self, item):
-        video_id = item.attrs.get('data-context-item-id', None)
-        if video_id is None:
-            LOG.error('%s - no data-context-item-id attribute', self.name)
-            return []
+            LOG.debug('%s - restored checkpoint: %s', self.name, self.last_checkpoint)
 
-        indicator = 'www.youtube.com/watch?v={}'.format(video_id)
-        value = {
-            'type': 'URL',
-            'confidence': 100
-        }
+            # old_status is missing in old releases
+            # stick to the old behavior
+            if saved_config and saved_config != config:
+                LOG.info(
+                    '%s - saved config does not match new config',
+                    self.name
+                )
+                self.last_checkpoint = None
+                return
 
-        return [[indicator, value]]
-
-
-class PlaylistMiner(BasePollerFT):
-    def configure(self):
-        super(PlaylistMiner, self).configure()
-
-        self.polling_timeout = self.config.get('polling_timeout', 20)
-        self.verify_cert = self.config.get('verify_cert', True)
-
-        self.playlist_id = self.config.get('playlist_id', None)
-        if self.playlist_id is None:
-            raise ValueError('%s - playlistID is required' % self.name)
-
-        self.api_key = self.config.get('api_key', None)
-        if self.api_key is None:
-            raise ValueError('%s - API Key is required' % self.name)
-
-        self.url = 'https://www.googleapis.com/youtube/v3/playlistItems'
-
-    def _build_iterator(self, item):
-        return self._retrieve_playlist()
-
-    def _retrieve_playlist(self):
-        rparams = {
-            'playlistId': self.playlist_id,
-            'key': self.api_key,
-            'maxResults': '50',
-            'part': 'contentDetails'
-        }
-
-        # builds the request and retrieves the page
-        rkwargs = dict(
-            stream=False,
-            verify=self.verify_cert,
-            timeout=self.polling_timeout,
-            params=rparams
-        )
-
-        nextPageToken = True
-        while nextPageToken:
-            if isinstance(nextPageToken, str) or isinstance(nextPageToken, unicode):
-                rparams['pageToken'] = nextPageToken
-
-            r = requests.get(
-                self.url,
-                **rkwargs
+            LOG.info(
+                '%s - saved config matches new config',
+                self.name
             )
 
-            try:
-                r.raise_for_status()
-            except:
-                LOG.debug('%s - exception in request: %s %s', self.name, r.status_code, r.content)
-                raise
+            if saved_state is not None:
+                self._saved_state_restore(saved_state)
 
-            data = json.loads(r.content)
-            for i in data['items']:
-                yield i['contentDetails']['videoId']
+        except (ValueError, IOError):
+            LOG.exception('{} - Error reading last checkpoint'.format(self.name))
+            self.last_checkpoint = None
 
-            nextPageToken = data.get('nextPageToken', None)
+    def create_checkpoint(self, value):
+        self._connect_redis()
 
-    def _process_item(self, item):
-        video_id = item
-        if video_id is None:
-            LOG.error('%s - no data-context-item-id attribute', self.name)
-            return []
-
-        indicator = 'www.youtube.com/watch?v={}'.format(video_id)
-        value = {
-            'type': 'URL',
-            'confidence': 100
+        config = {
+            'class': (self.__class__.__module__+'.'+self.__class__.__name__),
+            'config': self._original_config
         }
 
-        return [[indicator, value]]
-
-class ChannelMiner(BasePollerFT):
-    def configure(self):
-        super(ChannelMiner, self).configure()
-
-        self.polling_timeout = self.config.get('polling_timeout', 20)
-        self.verify_cert = self.config.get('verify_cert', True)
-
-        self.channel_id = self.config.get('channel_id', None)
-        if self.channel_id is None:
-            raise ValueError('%s - channelID is required' % self.name)
-
-        self.api_key = self.config.get('api_key', None)
-        if self.api_key is None:
-            raise ValueError('%s - API Key is required' % self.name)
-
-        self.url = 'https://www.googleapis.com/youtube/v3/search'
-
-    def _build_iterator(self, item):
-        return self._retrieve_playlist()
-
-    def _retrieve_playlist(self):
-        rparams = {
-            'channelId': self.channel_id,
-            'key': self.api_key,
-            'maxResults': '50',
-            'part': 'snippet'
+        contents = {
+            'checkpoint': value,
+            'config': json.dumps(config, sort_keys=True),
+            'state': self._saved_state_create()
         }
 
-        # builds the request and retrieves the page
-        rkwargs = dict(
-            stream=False,
-            verify=self.verify_cert,
-            timeout=self.polling_timeout,
-            params=rparams
+        self.SR.set(self.redis_skey_chkp, json.dumps(contents))
+
+    def remove_checkpoint(self):
+        self._connect_redis()
+        self.SR.delete(self.redis_skey_chkp)
+
+    def _connect_redis(self):
+        if self.SR is not None:
+            return
+
+        self.SR = redis.StrictRedis.from_url(
+            self.redis_url
         )
 
-        nextPageToken = True
-        while nextPageToken:
-            if isinstance(nextPageToken, str) or isinstance(nextPageToken, unicode):
-                rparams['pageToken'] = nextPageToken
+    def initialize(self):
+        self._connect_redis()
 
-            r = requests.get(
-                self.url,
-                **rkwargs
+    def rebuild(self):
+        self._connect_redis()
+        self.SR.delete(self.redis_skey)
+        self.SR.delete(self.redis_skey_value)
+
+    def reset(self):
+        self._connect_redis()
+        self.SR.delete(self.redis_skey)
+        self.SR.delete(self.redis_skey_value)
+
+    def _add_indicator(self, score, indicator, value):
+        if self.length() >= self.max_entries:
+            self.statistics['drop.overflow'] += 1
+            return
+
+        with self.SR.pipeline() as p:
+            p.multi()
+
+            p.zadd(self.redis_skey, score, indicator)
+            if self.store_value:
+                p.hset(self.redis_skey_value, indicator, json.dumps(value))
+
+            result = p.execute()[0]
+
+        self.statistics['added'] += result
+
+    def _delete_indicator(self, indicator):
+        with self.SR.pipeline() as p:
+            p.multi()
+
+            p.zrem(self.redis_skey, indicator)
+            p.hdel(self.redis_skey_value, indicator)
+
+            result = p.execute()[0]
+
+        self.statistics['removed'] += result
+
+    @base._counting('update.processed')
+    def filtered_update(self, source=None, indicator=None, value=None):
+        score = 0
+        if self.scoring_attribute is not None:
+            av = value.get(self.scoring_attribute, None)
+            if type(av) == int or type(av) == long:
+                score = av
+            else:
+                LOG.error("scoring_attribute is not int: %s", type(av))
+                score = 0
+
+        self._add_indicator(score, indicator, value)
+
+    @base._counting('withdraw.processed')
+    def filtered_withdraw(self, source=None, indicator=None, value=None):
+        self._delete_indicator(indicator)
+
+    def length(self, source=None):
+        return self.SR.zcard(self.redis_skey)
+
+    @staticmethod
+    def gc(name, config=None):
+        actorbase.ActorBaseFT.gc(name, config=config)
+
+        if config is None:
+            config = {}
+
+        redis_skey = name
+        redis_skey_value = '{}.value'.format(name)
+        redis_skey_chkp = '{}.chkp'.format(name)
+        redis_url = config.get('redis_url',
+            os.environ.get('REDIS_URL', 'unix:///var/run/redis/redis.sock')
+        )
+
+        cp = None
+        try:
+            cp = redis.ConnectionPool.from_url(
+                url=redis_url
             )
 
-            try:
-                r.raise_for_status()
-            except:
-                LOG.debug('%s - exception in request: %s %s', self.name, r.status_code, r.content)
-                raise
+            SR = redis.StrictRedis(connection_pool=cp)
 
-            data = json.loads(r.content)
-            for i in data['items']:
-                if i['id']['kind'] != 'youtube#video':
-                    continue
-                yield i['id']['videoId']
+            SR.delete(redis_skey)
+            SR.delete(redis_skey_value)
+            SR.delete(redis_skey_chkp)
 
-            nextPageToken = data.get('nextPageToken', None)
+        except Exception as e:
+            raise RuntimeError(str(e))
 
-    def _process_item(self, item):
-        video_id = item
-        if video_id is None:
-            LOG.error('%s - no data-context-item-id attribute', self.name)
-            return []
-
-        indicator = 'www.youtube.com/watch?v={}'.format(video_id)
-        value = {
-            'type': 'URL',
-            'confidence': 100
-        }
-
-        return [[indicator, value]]
+        finally:
+            if cp is not None:
+                cp.disconnect()
