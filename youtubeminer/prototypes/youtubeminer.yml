@@ -3,7 +3,7 @@ description: >
   Sample extension for MineMeld.
 
 prototypes:
-  eevblog:
+  processorUNED:
     author: Palo Alto Networks TBD
     class: youtubeminer.Processor
     development_status: EXPERIMENTAL
