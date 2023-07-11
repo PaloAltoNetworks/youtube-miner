@@ -1,16 +1,16 @@
 {
     "version": "0.5",
-    "name": "youtube-miner",
+    "name": "miner-test",
     "author": "Palo Alto Networks",
     "author_email": "techbizdev@paloaltonetworks.com",
     "description": "Sample MineMeld node extension for mining Youtube API",
     "url": "https://github.com/PaloAltoNetworks/youtube-miner",
     "entry_points": {
         "minemeld_nodes": {
-            "youtubeminer.Processor": "youtubeminer.node:Processor"
+            "minertest.Processor": "minertest.node:Processor"
         },
         "minemeld_prototypes": {
-            "youtubeminer.prototypes": "youtubeminer:prototypes"
+            "minertest.prototypes": "minertest:prototypes"
         }
     },
     "manifest_version": 0
